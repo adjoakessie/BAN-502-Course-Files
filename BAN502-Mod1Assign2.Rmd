@@ -1,0 +1,99 @@
+---
+title: "BAN-502-RRefresher"
+author: "Adwoa Kessie"
+date: "1/21/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# install.packages("tidyverse")
+library(tidyverse)
+```
+
+```{r}
+diamonddata = diamonds
+print("Number of columns: ")
+print(ncol(diamonddata))
+print("Number of rows: ")
+print(nrow(diamonddata))
+
+```
+
+
+```{r}
+ggplot(data=diamonddata, aes(x=carat, y=price))  +
+  geom_point() +
+  labs(title = "Carat vs. Price", # plot title 
+         x = "Carat", # x axis label 
+         y = "Price" # y axis label 
+  )
+```
+
+#### The relationship between Carat and Price is positive, meaning as the Carat increases, the Price increases as well. Also, it doesn't looks to be a linear increase. It looks like an exponential increase in price as Carat increases.
+
+
+```{r}
+ggplot(data=diamonddata, aes(x=carat, y=price, color=cut))  +
+  geom_point() +
+  labs(title = "Carat vs. Price", # plot title 
+         x = "Carat", # x axis label 
+         y = "Price" # y axis label 
+  )
+```
+
+#### The diamonds with ideal cut increases in price very fast as the carat go up. I can see price going to maximum even with carat = 1.
+#### With cut = 'fair', I see a linear increase in price as the carat increases. 
+#### So, the price increase speed is fastest for 'ideal' cut and lowest for 'fair' cut.
+
+
+```{r}
+ggplot(data=diamonddata, aes(x=carat, y=price, color=cut))  +
+  geom_point() + facet_grid(color ~ ., scales = "free", space = "free")
+  labs(title = "Carat vs. Price", # plot title 
+         x = "Carat", # x axis label 
+         y = "Price" # y axis label 
+  )
+```
+#### 1. I don't see many 'fair' cut diamonds in D color, while there are more 'fair' cut diamonds in G, H, I and J color.
+#### 2. Most of the diamonds in D color no more than 2. But, For color G, H, I and J, I see diamonds going up to 3 carat.
+#### 3. With color D, even low carat doamonds (1-2 carat) have high prices. But with color H, I and J, the price increase linearly and is maximum for diamonds with carat 2-3.
+
+```{r}
+inventory = read_csv("InventoryData.csv")
+```
+
+```{r}
+inventoryA = filter(inventory, inventory$Supplier == 'A')
+```
+
+#### We have 3,695 rows with Supplier A.
+
+```{r}
+inventoryA = mutate(inventoryA, OnHandRatio = `On Hand`/ `Annual Demand`)
+```
+
+#### We used the mutate function to create a new column called 'OnHandRatio'
+
+
+```{r}
+avg_cost = inventory %>% 
+  group_by(`Item SKU`) %>% 
+  summarise (mean = mean(`Cost per Unit ($)`))
+```
+
+
+#### Working with 'lubridate' was challenging. Also, a little more understanding on Shiny R would be good.
+
+
+
+
+
+
+
+
+
+

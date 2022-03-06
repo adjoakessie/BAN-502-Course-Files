@@ -1,0 +1,142 @@
+---
+title: "Module2 MultiLinearRegression"
+author: "Adwoa Kessie"
+date: "1/30/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(glmnet)
+library(MASS)
+library(ggcorrplot)
+library(lubridate)
+library(lmtest)
+library(car)
+```
+
+```{r }
+bike = read.csv('bike_cleaned.csv')
+```
+
+```{r}
+bike = bike %>% mutate(dteday = mdy(dteday)) #mdy is a lubridate package function
+```
+
+```{r}
+bike = bike %>% mutate_if(is.character, as_factor)
+```
+
+```{r}
+bike = bike %>% mutate(hr = as_factor(hr))
+```
+
+# We convert hr to factor because integer values are considered continuous numbers and have priorities assigned. However, factors are categorical variables which do not have priorities.
+
+```{r}
+cor(bike[, c(10,11,12,13,16)])
+```
+
+# temp is the most correlated with count.
+
+```{r}
+
+ggplot(bike,aes(x=hr,y=count)) + geom_boxplot() + theme_bw()
+
+```
+
+
+```{r}
+
+ggplot(bike,aes(x=season,y=count)) + geom_boxplot() + theme_bw()
+
+```
+
+Seasons affect count as Summer has the highest count, and winter has the lowest
+
+
+```{r}
+
+ggplot(bike,aes(x=mnth,y=count)) + geom_boxplot() + theme_bw()
+
+```
+
+#month affects count as I see that the count starts to increase from january until june, then stay around the same until aug, and then starts to decrease again.
+
+```{r}
+
+ggplot(bike,aes(x=holiday,y=count)) + geom_boxplot() + theme_bw()
+
+```
+
+# holiday affects count as 'not holiday' has higher count than 'holiday'.
+
+
+```{r}
+
+ggplot(bike,aes(x=weekday,y=count)) + geom_boxplot() + theme_bw()
+
+```
+
+#weekday dores not really affect count as the count are not very different for each weekday
+
+```{r}
+
+ggplot(bike,aes(x=workingday,y=count)) + geom_boxplot() + theme_bw()
+
+
+```
+
+# workingday also deoesnt seem to affect count very much. As the count is very close to each other for working and not working day
+
+```{r}
+
+ggplot(bike,aes(x=weathersit,y=count)) + geom_boxplot() + theme_bw()
+
+```
+#weathersit affects the count as NoPrecip has the higest count, while HeaveyPrecip has the lowest.
+
+```{r}
+model = lm(count~hr, bike)
+summary(model)
+```
+
+#The model seem to show that each hr value is significant to predict the count.
+
+```{r}
+model = lm(count ~ . - instant - dteday - registered - casual, data = bike)
+summary(model)
+```
+# In this model, a few values of variables weekday and month are not very significant based on their p-values. However this model is better than the one I created before which only used hr as the predictor variable. This is because the R square of this model = 0.63, while  my previous model = 0.50
+
+
+# The variables temp and atemp are very highly correlated (0.98). Hence there is multicollinearity. So we can eliminate one of those variables from the model.
+
+
+```{r}
+
+model = lm(count ~ . - instant - dteday - registered - casual, data = bike)
+step.model = stepAIC(model, direction = 'backward')
+summary(step.model)
+
+```
+
+# After using backward stepwise model, there doesn't sem to be any change in the model efficiency as compared to ythe previous model in Step 5. I tried forward and both directions too, but the result was the same. I also manually removed 'atemp' and 'worday' variable as they seem to have multicollinearity, but that also did not imprive the model efficiency.
+
+
+
+
+
+
+
+
+
+
+
+

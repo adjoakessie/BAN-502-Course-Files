@@ -1,0 +1,225 @@
+---
+title: "Mod3Assign2"
+author: "Adwoa Kessie"
+date: "2/6/2022"
+output: word_document
+---
+
+
+
+```{r}
+library(e1071)
+library(tidyverse)
+library(tidymodels)
+library(ROCR) #for Lasso, ridge, and elastic net models 
+```
+
+```{r}
+parole = read_csv("parole.csv")
+```
+
+```{r}
+
+parole = parole %>% mutate(male = as_factor(male)) %>% mutate(male = fct_recode(male, "Female" = "0", "Male" = "1" ))
+parole = parole %>% mutate(race = as_factor(race))  %>% mutate(race = fct_recode(race, "Others" = "2", "White" = "1" ))
+parole = parole %>% mutate(state = as_factor(state))  %>% mutate(state = fct_recode(state, "Other" = "1", "Kentucky" = "2", "Louisiana" = "3", "Virginia" = "4"))
+parole = parole %>% mutate(multiple.offenses = as_factor(multiple.offenses))  %>% mutate(multiple.offenses = fct_recode(multiple.offenses, "Other" = "0", "Mulitple" = "1" ))
+parole = parole %>% mutate(violator = as_factor(violator))  %>% mutate(violator = fct_recode(violator, "No Violation" = "0", "Violation" = "1" ))
+parole = parole %>% mutate(crime = as_factor(crime))  %>% mutate(crime = fct_recode(crime, "Larceny" = "2", "Drugs" = "3", "Other" = "1", "Driving" = "4" ))
+
+```
+
+```{r}
+set.seed(12345)
+parole_split = initial_split(parole, prop = 0.70, strata = violator)
+train = training(parole_split)
+test = testing(parole_split)
+```
+
+
+```{r}
+
+ggplot(parole,aes(x=violator,y=age)) + geom_boxplot() + theme_bw()
+
+```
+
+```{r}
+
+ggplot(parole,aes(x=violator,y=time.served)) + geom_boxplot() + theme_bw()
+
+```
+
+```{r}
+
+ggplot(parole,aes(x=violator,y=max.sentence)) + geom_boxplot() + theme_bw()
+
+```
+
+```{r}
+mosaicplot(violator~male,data=parole)
+```
+
+```{r}
+mosaicplot(violator~race,data=parole)
+```
+
+```{r}
+mosaicplot(violator~state,data=parole)
+```
+
+```{r}
+mosaicplot(violator~multiple.offenses,data=parole)
+```
+
+```{r}
+mosaicplot(violator~crime,data=parole)
+```
+
+```{r}
+model = glm(violator~state, family="binomial", data = train)
+summary(model)
+```
+
+## State has a significant impact on Violation. Loisiana and Virginia have p-values that are preetty significant.
+
+```{r}
+model = glm(violator~state+multiple.offenses, family="binomial", data = train)
+summary(model)
+```
+
+## The final model uses state and multiple.offenses parameters to predict violation. The AIC of this model is better than all other models I tried and also the one I created previously that only contained state and independent variable.
+
+```{r}
+model = glm(violator~state+multiple.offenses+race, family="binomial", data = train)
+summary(model)
+```
+## This model turned about to be more efficient than my best model. The aIC for this model is 256.52 vs. my model which was 262.79. All the three variables are pretty significant. However, race is the least significant.
+
+# Parolee 1
+```{r}
+parolee1 = -2.47873+0.11876+1.65689
+print(parolee1)
+```
+
+# Parolee 2
+```{r}
+parolee2 = -2.47873-0.01418+1.11646
+print(parolee2)
+```
+
+Let's extract just the "Yes" prediction.  
+```{r}
+predictions = predict(model, train, type="response")
+head(predictions)
+```
+
+Threshold selection  
+```{r}
+#Change this next line to the names of your predictions and the response variable in the training data frame
+ROCRpred = prediction(predictions, train$violator) 
+
+###You shouldn't need to ever change the next two lines:
+ROCRperf = performance(ROCRpred, "tpr", "fpr")
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+```
+Area under the curve (AUC). AUC is a measure of the strength of the model. Values closer to 1 are better. Can be used to compare models.  
+```{r}
+as.numeric(performance(ROCRpred, "auc")@y.values)
+```
+```{r}
+#Determine threshold to balance sensitivity and specificity
+#DO NOT modify this code
+opt.cut = function(perf, pred){
+    cut.ind = mapply(FUN=function(x, y, p){
+        d = (x - 0)^2 + (y-1)^2
+        ind = which(d == min(d))
+        c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            cutoff = p[[ind]])
+    }, perf@x.values, perf@y.values, pred@cutoffs)
+}
+print(opt.cut(ROCRperf, ROCRpred))
+```
+
+Test thresholds to evaluate accuracy  
+```{r}
+#confusion matrix
+#The "No" and "Yes" represent the actual values
+#The "FALSE" and "TRUE" represent our predicted values
+t1 = table(train$violator,predictions > 0.2015788)
+t1
+```
+
+Calculate accuracy  
+```{r}
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+Sensitivity
+```{r}
+36/(36+18)
+```
+
+Specificity
+```{r}
+360/(360+57)
+```
+## Incorrectly classifying a parolee as voilatated can lead to severe impact on the person. The person who has a chance to get out early on parole, might lose out on the chance.
+
+Can apply trial and error to maximize accuracy (here trying 0.5 as threshold)
+```{r}
+t1 = table(train$violator,predictions > 0.5)
+t1
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+
+Threshold = 0.6  
+```{r}
+t1 = table(train$violator,predictions > 0.6)
+t1
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+
+```{r}
+predictions = predict(model, test, type="response")
+```
+
+```{r}
+#Change this next line to the names of your predictions and the response variable in the training data frame
+ROCRpred = prediction(predictions, test$violator) 
+
+###You shouldn't need to ever change the next two lines:
+ROCRperf = performance(ROCRpred, "tpr", "fpr")
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+```
+
+```{r}
+as.numeric(performance(ROCRpred, "auc")@y.values)
+```
+
+```{r}
+#Determine threshold to balance sensitivity and specificity
+#DO NOT modify this code
+opt.cut = function(perf, pred){
+    cut.ind = mapply(FUN=function(x, y, p){
+        d = (x - 0)^2 + (y-1)^2
+        ind = which(d == min(d))
+        c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            cutoff = p[[ind]])
+    }, perf@x.values, perf@y.values, pred@cutoffs)
+}
+print(opt.cut(ROCRperf, ROCRpred))
+```
+
+```{r}
+#confusion matrix
+#The "No" and "Yes" represent the actual values
+#The "FALSE" and "TRUE" represent our predicted values
+t1 = table(test$violator,predictions > 0.5)
+t1
+```
+
+Calculate accuracy  
+```{r}
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+
+

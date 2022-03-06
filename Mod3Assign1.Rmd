@@ -1,0 +1,72 @@
+---
+title: "Mod3Assign1"
+author: "Adwoa Kessie"
+date: "2/5/2022"
+output: word_document
+---
+
+```{r }
+library(tidyverse)
+library(lubridate)
+library(tidymodels)
+```
+
+
+```{r }
+bike = read.csv('bike_cleaned-2.csv')
+```
+
+```{r}
+bike = bike %>% mutate(dteday = mdy(dteday)) #mdy is a lubridate package function
+```
+
+```{r}
+bike = bike %>% mutate_if(is.character, as_factor)
+```
+
+```{r}
+bike = bike %>% mutate(hr = as_factor(hr))
+```
+
+```{r}
+set.seed(1234)
+bike_split = initial_split(bike, prop = 0.70, strata = count)
+train = training(bike_split)
+test = testing(bike_split)
+```
+
+## Training set has 12163 rows, test set has 5216 rows
+
+```{r}
+model = lm(count~season+mnth+hr+holiday+weekday+temp+weathersit, data=train)
+summary(model)
+
+```
+## The model has Adjusted R2 of 0.6209. hr is a significant variable because all the hour values are significant. For month nd weekday, only a few values are significant.
+
+```{r}
+pred_train = predict(model, train)
+pred_train_df = data.frame(pred_train)
+
+```
+
+```{r}
+
+ggplot(pred_train_df, aes(x=pred_train)) + geom_histogram()
+
+```
+
+## The predicted values look to be normally distributed around 200 However, this is not perfectly normal distribution as there is a dip in the histogram right at the center.
+
+
+```{r}
+Rsquared = function (x, y) cor(x, y)^2
+RsquaredTest = Rsquared(predict(model, test), test$count)
+
+```
+
+## Training model has R2 of 0.6209 and test has the R2 of 0.627 which are pretty close to each other. However, since in general, if the R2 of test > R2 of training, it might imply overfitting. In this case though, the difference is minimal.
+
+
+
+

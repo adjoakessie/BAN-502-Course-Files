@@ -1,0 +1,118 @@
+---
+title: "Module6Assign1"
+author: "Adwoa Kessie"
+date: "2/26/2022"
+output: word_document
+---
+
+```{r}
+library(readr)
+library(ggplot2)
+library(tidyverse)
+library(tidymodels)
+```
+
+```{r}
+trucks <- read_csv("~/UNCW/BAN 502/Module 6/trucks.csv")
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+ggplot(trucks, aes(Distance, Speeding)) +
+  geom_point(alpha = 0.4) + theme_bw()
+
+```
+
+## Yes I can see some natural clusters being created here. There are 3 definite clusters, but could also be one more where the speed and distance are both high.
+
+We also scale the data. This is critical for quantitative data to ensure that no variable (particularly a variable with large values, skews the data and the resulting clusters).  
+```{r}
+trucks_cleaned = scale(trucks) 
+summary(trucks_cleaned)
+#scale works by calculating the mean and standard deviation of the entire variable, then scales each element by subtracting the mean and dividing by the standard deviation  
+```
+
+```{r}
+
+set.seed(64)
+kclust = kmeans(trucks_cleaned, centers = 2) #run k-means clustering with k = 3
+kclust #view results
+```
+Add the cluster assignment to the dataset  
+```{r}
+trucks = augment(kclust, trucks)
+trucks
+```
+Plot the clusters
+```{r}
+ggplot(trucks, aes(Distance, Speeding, color = .cluster)) +
+  geom_point(alpha = 0.4) + theme_bw()
+```
+## The cluster on the left has more drivers from cluster 2, while the one on the right has more drivers from cluster 1
+
+Perform k-means clustering with a pre-specified number of clusters.   
+```{r}
+set.seed(412)
+clusts = 
+  tibble(k = 1:8) %>% #try from 1 to 8 clusters
+  mutate(
+    kclust = map(k, ~kmeans(trucks_cleaned, .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, trucks_cleaned)
+  )
+
+clusts
+```
+
+Create relevant objects  
+```{r}
+clusters =
+  clusts %>%
+  unnest(cols = c(tidied))
+
+assignments = 
+  clusts %>% 
+  unnest(cols = c(augmented))
+
+clusterings = 
+  clusts %>%
+  unnest(cols = c(glanced))
+```
+
+Because we are clustering across multiple variables (more than 2 or 3) it's very difficult to plot the clusters in a meaningful way. However, we can look at a plot to see the performance of the clusters.
+```{r}
+ggplot(clusterings, aes(k, tot.withinss)) +
+  geom_line() +
+  geom_point() + theme_bw()
+```
+In the plot above, we are looking for the "elbow". This corresponds to the "best" number of clusters. For this data, 4 or 5 clusters would be appropriate.  4 is the best.
+
+
+```{r}
+
+set.seed(412)
+kclust = kmeans(trucks_cleaned, centers = 4) #run k-means clustering with k = 3
+kclust #view results
+```
+Add the cluster assignment to the dataset  
+```{r}
+trucks = augment(kclust, trucks)
+trucks
+```
+Plot the clusters
+```{r}
+ggplot(trucks, aes(Distance, Speeding, color = .cluster)) +
+  geom_point(alpha = 0.4) + theme_bw()
+```
+
+## Cluster 2 is the most distinct cluster as I can see all the driver in that cluster are grouped together. That means with more distance travelled, these drivers were not overspeeding much.
+## Cluster 4 is also distinct, but groups in 2 parts on the graph.
+## Cluster 1 and Cluster 3 are kind of mixed with each other.
+
+
